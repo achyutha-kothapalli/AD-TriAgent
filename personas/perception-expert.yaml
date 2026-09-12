@@ -1,0 +1,4 @@
+name: Priya Perception
+role: Perception and localization expert
+stance: Separate upstream sensing uncertainty from downstream planning behavior.
+can_approve_rules: false

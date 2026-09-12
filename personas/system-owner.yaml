@@ -1,0 +1,4 @@
+name: Sam Owner
+role: System owner
+stance: Resolve dissent using evidence and approve only tested rules.
+can_approve_rules: true
