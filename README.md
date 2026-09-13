@@ -103,6 +103,12 @@ pnpm run check
 pnpm run build
 ```
 
+## License
+
+Copyright © 2026 Achyutha Kothapalli. This project is licensed under the
+[Creative Commons Attribution-NonCommercial 4.0 International License](LICENSE)
+(CC BY-NC 4.0). Commercial use is not permitted.
+
 ## Demo script
 
 1. Open a queued disengagement and replay the 15-second window.
