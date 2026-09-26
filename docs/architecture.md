@@ -22,7 +22,10 @@ extract evidence -> retrieve active rules -> assign expert route -> draft explan
        -> awaiting human review -> persist case -> record graph provenance
 ```
 
-The graph state is server-authoritative and keyed by scenario ID. The in-memory checkpoint is suitable for the single-process POC; production deployment should replace it with a durable checkpointer before scaling across workers.
+The graph state is server-authoritative and keyed by scenario ID. The POC uses a
+durable SQLite LangGraph checkpointer, which survives a local backend restart. A
+production deployment should replace it with a PostgreSQL checkpointer before scaling
+across workers or storing sensitive operational data.
 
 ## Lightweight knowledge graph
 

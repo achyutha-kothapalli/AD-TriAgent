@@ -5,11 +5,12 @@ from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 from app.collaboration.dispatcher import SlackNotifier
 from app.config import get_settings
 from app.graph.store import KnowledgeGraph
-from app.models import CommentCreate, RuleApproval
+from app.models import CaseReview, CommentCreate, RuleApproval
 from app.scenarios.repository import ScenarioRepository
 from app.services.cases import CaseStore, now
 from app.services.evidence import EvidenceExtractor
@@ -23,23 +24,27 @@ from app.workflows.triage import TriageWorkflow
 async def lifespan(app: FastAPI):
     settings = get_settings()
     settings.runtime_path.mkdir(parents=True, exist_ok=True)
-    app.state.scenarios = ScenarioRepository(settings.scenario_path)
-    app.state.cases = CaseStore(settings.runtime_path / "cases.json")
-    app.state.graph = KnowledgeGraph(settings.runtime_path / "rule_graph.json")
-    app.state.extractor = EvidenceExtractor()
-    app.state.rules = RuleMiner(app.state.extractor)
-    app.state.narrator = TriageNarrator(settings)
-    app.state.observer = WorkflowObserver(settings.runtime_path / "workflow_events.jsonl")
-    app.state.triage_workflow = TriageWorkflow(
-        app.state.scenarios,
-        app.state.cases,
-        app.state.graph,
-        app.state.extractor,
-        app.state.narrator,
-        app.state.observer,
-    )
-    app.state.notifications = SlackNotifier(settings)
-    yield
+    checkpoint_path = settings.runtime_path / "langgraph_checkpoints.sqlite"
+    async with AsyncSqliteSaver.from_conn_string(str(checkpoint_path)) as checkpointer:
+        await checkpointer.setup()
+        app.state.scenarios = ScenarioRepository(settings.scenario_path)
+        app.state.cases = CaseStore(settings.runtime_path / "cases.json")
+        app.state.graph = KnowledgeGraph(settings.runtime_path / "rule_graph.json")
+        app.state.extractor = EvidenceExtractor()
+        app.state.rules = RuleMiner(app.state.extractor)
+        app.state.narrator = TriageNarrator(settings)
+        app.state.observer = WorkflowObserver(settings.runtime_path / "workflow_events.jsonl")
+        app.state.triage_workflow = TriageWorkflow(
+            app.state.scenarios,
+            app.state.cases,
+            app.state.graph,
+            app.state.extractor,
+            app.state.narrator,
+            app.state.observer,
+            checkpointer,
+        )
+        app.state.notifications = SlackNotifier(settings)
+        yield
 
 
 settings = get_settings()
@@ -126,6 +131,43 @@ async def add_comment(case_id: str, payload: CommentCreate, request: Request) ->
     cases.upsert(case_id, case)
     await _service(request, "notifications").dispatch(case, case["activity"][-1])
     return {"case": case, "rule": rule}
+
+
+@app.post("/api/cases/{case_id}/review")
+async def record_case_review(case_id: str, payload: CaseReview, request: Request) -> dict:
+    cases = _service(request, "cases")
+    case = cases.get(case_id)
+    if case is None:
+        raise HTTPException(status_code=404, detail="Case not found")
+    if case.get("human_review", {}).get("status") != "pending":
+        raise HTTPException(status_code=409, detail="This triage review has already been recorded")
+    if payload.action == "approve" and payload.reviewer_role != "System owner":
+        raise HTTPException(status_code=403, detail="Only the system owner can approve a triage review")
+
+    status_by_action = {
+        "approve": ("approved", "triage_reviewed"),
+        "request_more_evidence": ("needs_more_evidence", "needs_more_evidence"),
+        "reject": ("rejected", "triage_rejected"),
+    }
+    review_status, case_status = status_by_action[payload.action]
+    case["human_review"].update(
+        {
+            "status": review_status,
+            "reviewed_by": payload.reviewer,
+            "reviewed_role": payload.reviewer_role,
+            "note": payload.note,
+        }
+    )
+    case["status"] = case_status
+    cases.activity(
+        case,
+        "human_review",
+        f"{payload.action.replace('_', ' ')}: {payload.note or 'no note'}",
+        payload.reviewer,
+    )
+    cases.upsert(case_id, case)
+    await _service(request, "notifications").dispatch(case, case["activity"][-1])
+    return case
 
 
 @app.post("/api/rules/{rule_id}/test")

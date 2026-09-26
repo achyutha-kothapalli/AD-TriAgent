@@ -21,6 +21,18 @@ def test_case_rule_workflow() -> None:
         assert case["human_review"]["status"] == "pending"
         assert "Safety reviewer" in case["human_review"]["reviewers"]
 
+        review = client.post(
+            f"/api/cases/{case['id']}/review",
+            json={
+                "reviewer": "Sam Owner",
+                "reviewer_role": "System owner",
+                "action": "approve",
+                "note": "Evidence packet is sufficient for follow-up.",
+            },
+        )
+        assert review.status_code == 200
+        assert review.json()["human_review"]["status"] == "approved"
+
         comment = client.post(
             f"/api/cases/{case['id']}/comments",
             json={

@@ -74,5 +74,13 @@ export type Case = {
   rules: Rule[];
   activity: Activity[];
   workflow?: { engine: string; state: string; review_route: string[] };
-  human_review?: { status: string; required: boolean; reviewers: string[]; decision_boundary: string };
+  human_review?: {
+    status: string;
+    required: boolean;
+    reviewers: string[];
+    decision_boundary: string;
+    reviewed_by?: string;
+    reviewed_role?: string;
+    note?: string;
+  };
 };

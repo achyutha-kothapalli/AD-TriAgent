@@ -53,6 +53,13 @@ pnpm run dev
 
 Open `http://localhost:5173`. The API docs are at `http://localhost:8000/docs`.
 
+### Docker demo
+
+After generating the corpus, run `docker compose up --build` from the repository
+root. This starts a production-shaped FastAPI backend and static frontend at the
+same local URLs. See the [deployment guide](docs/deployment.md) for environment and
+hosting details.
+
 ## Scenario corpus
 
 The generator uses `MetaDriveEnv` to produce the road geometry and live vehicle tracks. It saves a compact browser replay format plus MetaDrive provenance (`seed`, map pattern, sampling rate, and generator version). Controlled fault overlays provide known labels and measurable telemetry patterns for the five triage families.

@@ -4,7 +4,6 @@ from contextlib import contextmanager
 from time import perf_counter
 from typing import Any, TypedDict
 
-from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 
 from app.graph.store import KnowledgeGraph
@@ -45,6 +44,7 @@ class TriageWorkflow:
         extractor: EvidenceExtractor,
         narrator: TriageNarrator,
         observer: WorkflowObserver,
+        checkpointer: Any,
     ) -> None:
         self.scenarios = scenarios
         self.cases = cases
@@ -52,6 +52,7 @@ class TriageWorkflow:
         self.extractor = extractor
         self.narrator = narrator
         self.observer = observer
+        self.checkpointer = checkpointer
         self.graph = self._build_graph()
 
     def _build_graph(self):
@@ -71,7 +72,7 @@ class TriageWorkflow:
         workflow.add_edge("await_human_review", "persist_case")
         workflow.add_edge("persist_case", "record_provenance")
         workflow.add_edge("record_provenance", END)
-        return workflow.compile(checkpointer=InMemorySaver())
+        return workflow.compile(checkpointer=self.checkpointer)
 
     def _extract_evidence(self, state: TriageState) -> TriageState:
         with self._measure("extract_evidence", state):

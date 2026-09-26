@@ -250,6 +250,27 @@ function App() {
     } catch (reason) { setError((reason as Error).message); }
   }
 
+  async function recordReview(action: "approve" | "request_more_evidence" | "reject") {
+    if (!caseRecord) return;
+    const notes = {
+      approve: "Evidence packet is sufficient for follow-up.",
+      request_more_evidence: "Please add supporting telemetry or an expert assessment.",
+      reject: "The preliminary routing needs reassessment by the triage team.",
+    };
+    try {
+      const updated = await api<Case>(`/api/cases/${caseRecord.id}/review`, {
+        method: "POST",
+        body: JSON.stringify({
+          reviewer: "Sam Owner",
+          reviewer_role: "System owner",
+          action,
+          note: notes[action],
+        }),
+      });
+      setCaseRecord(updated);
+    } catch (reason) { setError((reason as Error).message); }
+  }
+
   return (
     <main className="app-shell">
       <header className="app-header">
@@ -277,7 +298,7 @@ function App() {
         </section>
 
         <aside className="right-column">
-          {caseRecord && <section className="collaboration panel"><p className="eyebrow">Shared workspace</p><h2>Expert collaboration</h2><div className="review-gate"><strong>{caseRecord.human_review?.status === "pending" ? "Human review required" : "Review recorded"}</strong><span>{caseRecord.human_review?.reviewers.join(" → ")}</span><small>{caseRecord.human_review?.decision_boundary}</small></div><div className="activity-list">{caseRecord.activity.slice().reverse().slice(0, 5).map((activity) => <div className="activity" key={activity.id}><strong>{activity.actor}</strong><span>{activity.message}</span></div>)}</div><form onSubmit={submitComment}><textarea value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Add evidence, dissent, or a proposed triage refinement…" /><div className="form-row"><select value={role} onChange={(event) => setRole(event.target.value)}><option>Safety reviewer</option><option>Perception and localization expert</option><option>Prediction and behavior expert</option><option>Planning and controls expert</option><option>System health and ODD expert</option></select><label><input type="checkbox" checked={simulated} onChange={(event) => setSimulated(event.target.checked)} /> Persona</label></div><button className="primary small" type="submit">Submit to case</button></form></section>}
+          {caseRecord && <section className="collaboration panel"><p className="eyebrow">Shared workspace</p><h2>Expert collaboration</h2><div className="review-gate"><strong>{caseRecord.human_review?.status === "pending" ? "Human review required" : "Review recorded"}</strong><span>{caseRecord.human_review?.reviewers.join(" → ")}</span><small>{caseRecord.human_review?.decision_boundary}</small>{caseRecord.human_review?.status === "pending" ? <div className="review-actions"><button className="primary small" onClick={() => recordReview("approve")}>Approve triage</button><button className="secondary small" onClick={() => recordReview("request_more_evidence")}>Request evidence</button><button className="secondary small" onClick={() => recordReview("reject")}>Reject route</button></div> : <small>{caseRecord.human_review?.reviewed_by}: {caseRecord.human_review?.note}</small>}</div><div className="activity-list">{caseRecord.activity.slice().reverse().slice(0, 5).map((activity) => <div className="activity" key={activity.id}><strong>{activity.actor}</strong><span>{activity.message}</span></div>)}</div><form onSubmit={submitComment}><textarea value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Add evidence, dissent, or a proposed triage refinement…" /><div className="form-row"><select value={role} onChange={(event) => setRole(event.target.value)}><option>Safety reviewer</option><option>Perception and localization expert</option><option>Prediction and behavior expert</option><option>Planning and controls expert</option><option>System health and ODD expert</option></select><label><input type="checkbox" checked={simulated} onChange={(event) => setSimulated(event.target.checked)} /> Persona</label></div><button className="primary small" type="submit">Submit to case</button></form></section>}
           {caseRecord && <section className="rules panel"><p className="eyebrow">Knowledge graph</p><h2>Rule lifecycle</h2>{caseRecord.rules.length === 0 ? <p className="muted">Expert input will create a candidate rule with full provenance.</p> : caseRecord.rules.map((rule) => <RuleCard key={rule.id} rule={rule} onTest={testRule} onApprove={approveRule} />)}</section>}
         </aside>
       </div>}

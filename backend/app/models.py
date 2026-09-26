@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -30,6 +30,13 @@ class CommentCreate(BaseModel):
 
 class RuleApproval(BaseModel):
     owner: str = Field(min_length=2, max_length=80)
+    note: str = Field(default="", max_length=1000)
+
+
+class CaseReview(BaseModel):
+    reviewer: str = Field(min_length=2, max_length=80)
+    reviewer_role: str = Field(min_length=2, max_length=120)
+    action: Literal["approve", "request_more_evidence", "reject"]
     note: str = Field(default="", max_length=1000)
 
 
