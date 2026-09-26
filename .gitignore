@@ -21,6 +21,6 @@ frontend/vite.config.d.ts
 .ppt-build/
 .codex-finalizer/
 output/
-data/runtime/*.json
+data/runtime/
 data/generated/*.json
 !data/generated/.gitkeep

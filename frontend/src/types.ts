@@ -48,6 +48,7 @@ export type Triage = {
   evidence: Evidence[];
   contributing_factors: string[];
   narrative: string;
+  narrative_provenance?: { source: string; model?: string | null; fallback_reason?: string | null };
   active_rules: Rule[];
 };
 
@@ -72,4 +73,6 @@ export type Case = {
   comments: Array<{ id: string; author: string; role: string; body: string; at: string; is_simulated_persona: boolean }>;
   rules: Rule[];
   activity: Activity[];
+  workflow?: { engine: string; state: string; review_route: string[] };
+  human_review?: { status: string; required: boolean; reviewers: string[]; decision_boundary: string };
 };

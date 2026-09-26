@@ -9,6 +9,7 @@ A hackathon POC for reviewing autonomous-driving disengagements. Each case conta
 - A generator that creates 30 synthetic scenario cases by driving procedural roads in MetaDrive.
 - Five decision families: safety conflict, perception/localization/map, prediction/interaction, planning/control/compliance, and ODD/platform/handover.
 - A LangGraph triage workflow: deterministic evidence, active-rule retrieval, expert routing, constrained LLM explanation, and a persisted human-review gate.
+- Reproducible corpus evaluation and per-node workflow telemetry, with no automatic rule activation.
 - FastAPI endpoints for triage cases, comments, rule candidates, testing, and owner approval.
 - A React case room with a browser-native top-down replay, evidence cards, collaboration timeline, and rule review panel.
 - A lightweight NetworkX knowledge graph persisted as portable JSON, with no database service to operate.
@@ -84,6 +85,8 @@ cd frontend
 pnpm run check
 pnpm run build
 ```
+
+See [evaluation and observability](docs/evaluation.md) for the corpus-evaluation command and the metrics it reports.
 
 ## License
 

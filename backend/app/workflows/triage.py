@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
+from time import perf_counter
 from typing import Any, TypedDict
 
 from langgraph.checkpoint.memory import InMemorySaver
@@ -10,6 +12,7 @@ from app.scenarios.repository import ScenarioRepository
 from app.services.cases import CaseStore, now
 from app.services.evidence import EvidenceExtractor
 from app.services.narrator import TriageNarrator
+from app.services.observability import WorkflowObserver
 
 REVIEW_ROUTES = {
     "safety_conflict": ["Safety reviewer", "System owner"],
@@ -41,12 +44,14 @@ class TriageWorkflow:
         knowledge_graph: KnowledgeGraph,
         extractor: EvidenceExtractor,
         narrator: TriageNarrator,
+        observer: WorkflowObserver,
     ) -> None:
         self.scenarios = scenarios
         self.cases = cases
         self.knowledge_graph = knowledge_graph
         self.extractor = extractor
         self.narrator = narrator
+        self.observer = observer
         self.graph = self._build_graph()
 
     def _build_graph(self):
@@ -69,71 +74,108 @@ class TriageWorkflow:
         return workflow.compile(checkpointer=InMemorySaver())
 
     def _extract_evidence(self, state: TriageState) -> TriageState:
-        scenario = self.scenarios.get(state["scenario_id"])
-        if scenario is None:
-            raise ValueError(f"Scenario {state['scenario_id']} was not found")
-        return {
-            "scenario_title": scenario.title,
-            "triage": self.extractor.extract(scenario).as_dict(),
-        }
+        with self._measure("extract_evidence", state):
+            scenario = self.scenarios.get(state["scenario_id"])
+            if scenario is None:
+                raise ValueError(f"Scenario {state['scenario_id']} was not found")
+            return {
+                "scenario_title": scenario.title,
+                "triage": self.extractor.extract(scenario).as_dict(),
+            }
 
     def _retrieve_active_rules(self, state: TriageState) -> TriageState:
-        triage = dict(state["triage"])
-        triage["active_rules"] = self.knowledge_graph.active_rules_for(triage["primary_family"])
-        return {"triage": triage}
+        with self._measure("retrieve_active_rules", state):
+            triage = dict(state["triage"])
+            triage["active_rules"] = self.knowledge_graph.active_rules_for(triage["primary_family"])
+            return {"triage": triage}
 
-    @staticmethod
-    def _assign_review_route(state: TriageState) -> TriageState:
-        family = state["triage"]["primary_family"]
-        return {"review_route": REVIEW_ROUTES.get(family, ["System owner"])}
+    def _assign_review_route(self, state: TriageState) -> TriageState:
+        with self._measure("assign_review_route", state):
+            family = state["triage"]["primary_family"]
+            return {"review_route": REVIEW_ROUTES.get(family, ["System owner"])}
 
     async def _draft_explanation(self, state: TriageState) -> TriageState:
-        triage = dict(state["triage"])
-        triage["narrative"] = await self.narrator.explain(state["scenario_title"], triage)
-        return {"triage": triage}
+        with self._measure("draft_explanation", state) as details:
+            triage = dict(state["triage"])
+            draft = await self.narrator.draft(state["scenario_title"], triage)
+            triage["narrative"] = draft.text
+            triage["narrative_provenance"] = {
+                "source": draft.source,
+                "model": draft.model,
+                "fallback_reason": draft.fallback_reason,
+            }
+            details["narrative_source"] = draft.source
+            return {"triage": triage}
 
     def _await_human_review(self, state: TriageState) -> TriageState:
-        case_id = f"case-{state['scenario_id']}"
-        case = self.cases.get(case_id) or {
-            "id": case_id,
-            "scenario_id": state["scenario_id"],
-            "scenario_title": state["scenario_title"],
-            "created_at": now(),
-            "comments": [],
-            "rules": [],
-            "activity": [],
-        }
-        case["triage"] = state["triage"]
-        case["status"] = "awaiting_expert_review"
-        human_review = {
-            "status": "pending",
-            "required": True,
-            "reviewers": state["review_route"],
-            "decision_boundary": "A system owner must approve a passing candidate rule.",
-        }
-        case["workflow"] = {
-            "engine": "langgraph",
-            "state": "awaiting_human_review",
-            "review_route": state["review_route"],
-        }
-        case["human_review"] = human_review
-        self.cases.activity(
-            case,
-            "triage",
-            f"Routed to {state['triage']['primary_family_label']} ({state['triage']['severity']})",
-            "Triage workflow",
-        )
-        return {"case": case, "human_review": human_review}
+        with self._measure("await_human_review", state):
+            case_id = f"case-{state['scenario_id']}"
+            case = self.cases.get(case_id) or {
+                "id": case_id,
+                "scenario_id": state["scenario_id"],
+                "scenario_title": state["scenario_title"],
+                "created_at": now(),
+                "comments": [],
+                "rules": [],
+                "activity": [],
+            }
+            case["triage"] = state["triage"]
+            case["status"] = "awaiting_expert_review"
+            human_review = {
+                "status": "pending",
+                "required": True,
+                "reviewers": state["review_route"],
+                "decision_boundary": "A system owner must approve a passing candidate rule.",
+            }
+            case["workflow"] = {
+                "engine": "langgraph",
+                "state": "awaiting_human_review",
+                "review_route": state["review_route"],
+            }
+            case["human_review"] = human_review
+            self.cases.activity(
+                case,
+                "triage",
+                f"Routed to {state['triage']['primary_family_label']} ({state['triage']['severity']})",
+                "Triage workflow",
+            )
+            return {"case": case, "human_review": human_review}
 
     def _persist_case(self, state: TriageState) -> TriageState:
-        case = state["case"]
-        self.cases.upsert(case["id"], case)
-        return {"case": case}
+        with self._measure("persist_case", state):
+            case = state["case"]
+            self.cases.upsert(case["id"], case)
+            return {"case": case}
 
     def _record_provenance(self, state: TriageState) -> TriageState:
-        case = state["case"]
-        self.knowledge_graph.record_triage(case["scenario_id"], case["id"], state["triage"])
-        return {"case": case}
+        with self._measure("record_provenance", state):
+            case = state["case"]
+            self.knowledge_graph.record_triage(case["scenario_id"], case["id"], state["triage"])
+            return {"case": case}
+
+    @contextmanager
+    def _measure(self, node: str, state: TriageState):
+        started = perf_counter()
+        details: dict[str, Any] = {}
+        try:
+            yield details
+        except Exception as error:
+            self.observer.record(
+                scenario_id=state["scenario_id"],
+                node=node,
+                outcome="error",
+                duration_ms=(perf_counter() - started) * 1000,
+                details={"error_type": type(error).__name__},
+            )
+            raise
+        else:
+            self.observer.record(
+                scenario_id=state["scenario_id"],
+                node=node,
+                outcome="ok",
+                duration_ms=(perf_counter() - started) * 1000,
+                details=details,
+            )
 
     async def run(self, scenario_id: str) -> dict[str, Any]:
         state = await self.graph.ainvoke(
