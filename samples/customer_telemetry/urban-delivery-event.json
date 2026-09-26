@@ -1,0 +1,9 @@
+{
+  "incident": {"id": "urban-0001", "summary": "Pedestrian conflict near delivery stop", "context": {"city": "Berlin", "weather": "dry", "route_type": "delivery"}},
+  "disengagement": {"frame_index": 1},
+  "qa": {"known_primary_failure": "safety_conflict"},
+  "telemetry": {"samples": [
+    {"timestamp_s": -0.1, "host_vehicle": {"vehicle_id": "ego", "pose": {"x_m": 0.0, "y_m": 0.0, "heading_rad": 0.0}, "speed_mps": 8.0, "render_color": "#8bc7ff"}, "nearby_actors": [{"track_id": "ped-7", "object_type": "pedestrian", "pose": {"x_m": 3.0, "y_m": 0.6, "heading_rad": 0.0}, "speed_mps": 1.2, "render_color": "#ffb17a"}], "signals": {"ttc_seconds": 1.1, "perception_confidence": 0.95, "localization_error_m": 0.1, "prediction_divergence": 0.1, "lane_deviation_m": 0.0, "jerk_mps3": 1.1, "compliance_risk": 0.0, "system_health_risk": 0.0, "handover_risk": 0.0}, "alerts": ["Pedestrian approach"]},
+    {"timestamp_s": 0.0, "host_vehicle": {"vehicle_id": "ego", "pose": {"x_m": 0.8, "y_m": 0.0, "heading_rad": 0.0}, "speed_mps": 7.0, "render_color": "#8bc7ff"}, "nearby_actors": [{"track_id": "ped-7", "object_type": "pedestrian", "pose": {"x_m": 3.2, "y_m": 0.3, "heading_rad": 0.0}, "speed_mps": 1.2, "render_color": "#ffb17a"}], "signals": {"ttc_seconds": 0.7, "perception_confidence": 0.95, "localization_error_m": 0.1, "prediction_divergence": 0.1, "lane_deviation_m": 0.0, "jerk_mps3": 2.3, "compliance_risk": 0.0, "system_health_risk": 0.0, "handover_risk": 0.0}, "alerts": ["Driver takeover"]}
+  ]}
+}

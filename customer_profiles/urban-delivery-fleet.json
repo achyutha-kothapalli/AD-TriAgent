@@ -1,0 +1,23 @@
+{
+  "id": "urban-delivery-fleet",
+  "source_system": "FleetOps event export",
+  "sampling_hz": 10,
+  "operating_context": "Low-speed, dense urban delivery routes with frequent vulnerable-road-user interactions.",
+  "event": {
+    "id": "incident.id",
+    "title": "incident.summary",
+    "event_frame": "disengagement.frame_index",
+    "frames": "telemetry.samples",
+    "metadata": "incident.context",
+    "primary_failure": "qa.known_primary_failure"
+  },
+  "frame": {
+    "timestamp_s": "timestamp_s",
+    "ego": "host_vehicle",
+    "actors": "nearby_actors",
+    "alerts": "alerts",
+    "ego_vehicle": {"id": "vehicle_id", "x": "pose.x_m", "y": "pose.y_m", "heading": "pose.heading_rad", "speed_mps": "speed_mps", "color": "render_color"},
+    "actor_vehicle": {"id": "track_id", "kind": "object_type", "x": "pose.x_m", "y": "pose.y_m", "heading": "pose.heading_rad", "speed_mps": "speed_mps", "color": "render_color"},
+    "metrics": {"ttc_s": "signals.ttc_seconds", "perception_confidence": "signals.perception_confidence", "localization_error_m": "signals.localization_error_m", "prediction_divergence": "signals.prediction_divergence", "lane_deviation_m": "signals.lane_deviation_m", "jerk_mps3": "signals.jerk_mps3", "compliance_risk": "signals.compliance_risk", "system_health_risk": "signals.system_health_risk", "handover_risk": "signals.handover_risk"}
+  }
+}

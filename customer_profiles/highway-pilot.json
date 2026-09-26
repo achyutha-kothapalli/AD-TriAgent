@@ -1,0 +1,23 @@
+{
+  "id": "highway-pilot",
+  "source_system": "HighwayPilot review feed",
+  "sampling_hz": 10,
+  "operating_context": "Limited-access highways with system-initiated handovers and high-speed interactions.",
+  "event": {
+    "id": "review_event.event_id",
+    "title": "review_event.title",
+    "event_frame": "disengagement.sample_index",
+    "frames": "vehicle_stream.frames",
+    "metadata": "review_event.operational_context",
+    "primary_failure": "quality.root_cause"
+  },
+  "frame": {
+    "timestamp_s": "time_s",
+    "ego": "ego_state",
+    "actors": "tracked_objects",
+    "alerts": "warnings",
+    "ego_vehicle": {"id": "id", "x": "position.x", "y": "position.y", "heading": "heading_rad", "speed_mps": "velocity_mps", "color": "display_color"},
+    "actor_vehicle": {"id": "id", "kind": "class", "x": "position.x", "y": "position.y", "heading": "heading_rad", "speed_mps": "velocity_mps", "color": "display_color"},
+    "metrics": {"ttc_s": "risk.ttc_s", "perception_confidence": "quality.perception_confidence", "localization_error_m": "quality.localization_error_m", "prediction_divergence": "quality.prediction_divergence", "lane_deviation_m": "vehicle.lane_deviation_m", "jerk_mps3": "vehicle.jerk_mps3", "compliance_risk": "risk.compliance", "system_health_risk": "system.health_risk", "handover_risk": "system.handover_risk"}
+  }
+}

@@ -95,6 +95,14 @@ pnpm run build
 
 See [evaluation and observability](docs/evaluation.md) for the corpus-evaluation command and the metrics it reports.
 
+## Customer-pilot readiness
+
+The repository includes versioned example mappings for an urban delivery fleet and a
+highway-pilot review feed. The [data contract](docs/data-contract.md),
+[customer-pilot pack](docs/customer-pilot.md), and [engineering decision log](docs/decision-log.md)
+show how to take this POC from discovery through a read-only pilot without claiming
+that synthetic results are production safety validation.
+
 ## License
 
 Copyright © 2026 Achyutha Kothapalli. This project is licensed under the
