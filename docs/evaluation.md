@@ -1,6 +1,6 @@
 # Evaluation and observability
 
-The portfolio claim is intentionally narrow: the evaluator measures deterministic
+The evaluation scope is intentionally narrow: it measures deterministic
 failure-family routing on the labeled synthetic MetaDrive corpus. It does not score
 LLM prose as a safety decision, because the LLM can only explain supplied evidence.
 

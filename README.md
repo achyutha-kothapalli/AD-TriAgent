@@ -1,6 +1,8 @@
 # Autonomous Driving Triage Agent
 
-A hackathon POC for reviewing autonomous-driving disengagements. Each case contains a locked **-10 s to +5 s** window around the disengagement, an evidence-first triage decision, expert collaboration, and versioned rule mining in a knowledge graph.
+An evidence-first decision-support workflow for reviewing autonomous-driving
+disengagements. Each case contains a locked **-10 s to +5 s** window around the
+disengagement, expert collaboration, and versioned rule mining in a knowledge graph.
 
 > This is a decision-support prototype using synthetic data. It is not a vehicle-control system and does not approve safety-critical operational decisions autonomously.
 

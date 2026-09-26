@@ -24,7 +24,7 @@ origin. Use a persistent volume for `data/runtime` and supply secrets only throu
 the hosting provider's secret manager. Keep `LLM_ENABLED=false` for a no-key demo.
 
 The public demo must use only the supplied synthetic corpus. Do not upload real
-vehicle telemetry or credentials to a shared portfolio deployment.
+vehicle telemetry or credentials to a shared demonstration deployment.
 
 ## Persistence boundary
 
