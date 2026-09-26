@@ -33,17 +33,6 @@ class RuleApproval(BaseModel):
     note: str = Field(default="", max_length=1000)
 
 
-class AmbiguousInboundEvent(BaseModel):
-    """Normalized event sent by an Ambiguous API integration or a relay."""
-
-    event_id: str = Field(min_length=4, max_length=160)
-    case_id: str = Field(min_length=6, max_length=160)
-    kind: str = Field(pattern="^(expert_comment|task_update)$")
-    actor: str = Field(min_length=2, max_length=80)
-    role: str = Field(min_length=2, max_length=120)
-    message: str = Field(min_length=4, max_length=4000)
-
-
 class VehicleState(BaseModel):
     id: str
     kind: str = "vehicle"

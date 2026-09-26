@@ -1,5 +1,4 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { CopilotChat, useAgentContext } from "@copilotkit/react-core/v2";
 import type { Case, Rule, Scenario, ScenarioSummary, Vehicle } from "./types";
 
 // In development Vite proxies /api to FastAPI. In a deployed build, set
@@ -148,24 +147,6 @@ function RuleCard({ rule, onTest, onApprove }: { rule: Rule; onTest: (id: string
   );
 }
 
-function CopilotCaseContext({ caseRecord, scenario, frameIndex }: {
-  caseRecord: Case | null;
-  scenario: Scenario | null;
-  frameIndex: number;
-}) {
-  const frame = scenario?.frames[frameIndex];
-  useAgentContext({
-    description: "Selected autonomous-driving triage case",
-    value: {
-      caseId: caseRecord?.id ?? null,
-      scenarioId: scenario?.id ?? null,
-      selectedTimeSeconds: frame?.timestamp_s ?? null,
-      visibleMetrics: frame?.metrics ?? {},
-    },
-  });
-  return null;
-}
-
 function App() {
   const [scenarios, setScenarios] = useState<ScenarioSummary[]>([]);
   const [scenario, setScenario] = useState<Scenario | null>(null);
@@ -271,7 +252,6 @@ function App() {
 
   return (
     <main className="app-shell">
-      <CopilotCaseContext caseRecord={caseRecord} scenario={scenario} frameIndex={frameIndex} />
       <header className="app-header">
         <div><p className="eyebrow">Agentic safety workflow · POC</p><h1>Disengagement Triage Room</h1></div>
         <div className="header-status"><span className="dot" /> {scenarios.length || "No"} MetaDrive cases loaded</div>
@@ -297,7 +277,6 @@ function App() {
         </section>
 
         <aside className="right-column">
-          <section className="copilot panel"><p className="eyebrow">CopilotKit</p><h2>Ask the triage agent</h2><CopilotChat labels={{ modalHeaderTitle: "Triage copilot", welcomeMessageText: "Ask about the current evidence or rule workflow." }} /></section>
           {caseRecord && <section className="collaboration panel"><p className="eyebrow">Shared workspace</p><h2>Expert collaboration</h2><div className="activity-list">{caseRecord.activity.slice().reverse().slice(0, 5).map((activity) => <div className="activity" key={activity.id}><strong>{activity.actor}</strong><span>{activity.message}</span></div>)}</div><form onSubmit={submitComment}><textarea value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Add evidence, dissent, or a proposed triage refinement…" /><div className="form-row"><select value={role} onChange={(event) => setRole(event.target.value)}><option>Safety reviewer</option><option>Perception and localization expert</option><option>Prediction and behavior expert</option><option>Planning and controls expert</option><option>System health and ODD expert</option></select><label><input type="checkbox" checked={simulated} onChange={(event) => setSimulated(event.target.checked)} /> Persona</label></div><button className="primary small" type="submit">Submit to case</button></form></section>}
           {caseRecord && <section className="rules panel"><p className="eyebrow">Knowledge graph</p><h2>Rule lifecycle</h2>{caseRecord.rules.length === 0 ? <p className="muted">Expert input will create a candidate rule with full provenance.</p> : caseRecord.rules.map((rule) => <RuleCard key={rule.id} rule={rule} onTest={testRule} onApprove={approveRule} />)}</section>}
         </aside>

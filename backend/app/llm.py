@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from openai import AsyncOpenAI
+from langchain_openai import ChatOpenAI
 
 from app.config import Settings
 
@@ -18,7 +18,9 @@ def llm_client_options(settings: Settings) -> dict[str, Any] | None:
     return options
 
 
-def create_llm_client(settings: Settings) -> AsyncOpenAI | None:
-    """Create the configured server-side, OpenAI-compatible LLM client."""
+def create_chat_model(settings: Settings) -> ChatOpenAI | None:
+    """Create LangChain's OpenAI-compatible chat model without exposing credentials."""
     options = llm_client_options(settings)
-    return AsyncOpenAI(**options) if options else None
+    if not options or not settings.llm_model:
+        return None
+    return ChatOpenAI(model=settings.llm_model, temperature=0.2, max_tokens=180, **options)

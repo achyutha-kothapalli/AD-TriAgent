@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import logging
 
+from langchain_core.messages import HumanMessage, SystemMessage
+
 from app.config import Settings
-from app.llm import create_llm_client
+from app.llm import create_chat_model
 
 logger = logging.getLogger(__name__)
 
@@ -19,31 +21,29 @@ class TriageNarrator:
         )
         if not self.settings.llm_enabled or not self.settings.llm_api_key:
             return fallback
-        client = create_llm_client(self.settings)
+        model = create_chat_model(self.settings)
         try:
             from openai import APIError
 
-            if client is None:
+            if model is None:
                 return fallback
-            response = await client.chat.completions.create(
-                model=self.settings.llm_model,
-                temperature=0.2,
-                max_tokens=180,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are an autonomous-driving triage assistant. Explain only supplied evidence, do not claim certainty, and request human review.",
-                    },
-                    {
-                        "role": "user",
-                        "content": f"Case: {scenario_title}\nTriage: {triage}\nGive a concise evidence-first explanation.",
-                    },
-                ],
+            response = await model.ainvoke(
+                [
+                    SystemMessage(
+                        content=(
+                            "You are an autonomous-driving triage assistant. Explain only supplied "
+                            "evidence, do not claim certainty, and request human review."
+                        )
+                    ),
+                    HumanMessage(
+                        content=(
+                            f"Case: {scenario_title}\nTriage: {triage}\n"
+                            "Give a concise evidence-first explanation."
+                        )
+                    ),
+                ]
             )
-            return response.choices[0].message.content or fallback
+            return str(response.content) if response.content else fallback
         except (APIError, OSError, ValueError) as error:
             logger.info("LLM narrative fallback: %s", error)
             return fallback
-        finally:
-            if client is not None:
-                await client.close()

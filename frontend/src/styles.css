@@ -51,7 +51,7 @@ button.small { padding: 7px 9px; font-size: .73rem; }
 .metrics-strip div { display: grid; gap: 3px; }
 .metrics-strip span, .evidence span { color: #8facbb; font-size: .68rem; }
 .metrics-strip strong { color: #e9fcff; font-size: 1.04rem; }
-.triage-result, .collaboration, .rules, .copilot { padding: 17px; }
+.triage-result, .collaboration, .rules { padding: 17px; }
 .severity { border-radius: 999px; padding: 6px 10px; color: #fff; font-size: .75rem; font-weight: 900; }
 .severity.p0 { background: #c44040; }.severity.p1 { background: #b76e29; }.severity.p2 { background: #4e7aa0; }.severity.p3 { background: #497e69; }
 .narrative { margin: 15px 0; color: #c3d5de; font-size: .91rem; line-height: 1.5; }
@@ -60,8 +60,6 @@ button.small { padding: 7px 9px; font-size: .73rem; }
 .evidence strong { display: block; margin-top: 5px; color: #dbfff8; font-size: .95rem; word-break: break-word; }
 .evidence small { margin-left: 3px; color: #90b5c3; font-size: .63rem; }
 .contributing { margin: 14px 0 0; color: #9eb9c7; font-size: .76rem; }
-.copilot :is(.copilotKitChat, [class*="chat"]) { min-height: 260px; }
-.copilot h2 { margin-bottom: 12px; }
 .activity-list { display: grid; gap: 9px; margin: 13px 0; max-height: 210px; overflow-y: auto; }
 .activity { display: grid; gap: 2px; padding-left: 10px; border-left: 2px solid #3f7e88; color: #a9c3cf; font-size: .76rem; line-height: 1.4; }
 .activity strong { color: #e0f5f3; }
@@ -78,5 +76,5 @@ form > button { margin-top: 9px; }
 .status.candidate { color: #f8d49b; background: #5b4016; }.status.tested { color: #b6dcff; background: #1f4f6e; }.status.active { color: #a5f0c9; background: #1d5a42; }
 .test-result { color: #8dd1c1 !important; }.approved { color: #8ee4bc; font-size: .7rem; }.error-banner { margin-bottom: 14px; padding: 12px 14px; border: 1px solid #ad4a4a; border-radius: 10px; color: #ffc1b7; background: #401d26; }.empty { padding: 28px; }.empty p { margin-bottom: 0; color: #b8cfd9; }code { color: #91d9cf; }
 
-@media (max-width: 1220px) { .workspace { grid-template-columns: 150px minmax(0, 1fr); }.right-column { grid-column: 2; grid-template-columns: 1fr 1fr; }.copilot { grid-column: 1 / -1; }.evidence-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 1220px) { .workspace { grid-template-columns: 150px minmax(0, 1fr); }.right-column { grid-column: 2; grid-template-columns: 1fr 1fr; }.evidence-grid { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 760px) { .app-shell { padding: 14px; }.workspace { display: flex; flex-direction: column; }.case-queue { position: static; width: 100%; }.queue-list { display: flex; max-height: none; overflow-x: auto; }.queue-item { min-width: 115px; }.center-column, .right-column { width: 100%; }.right-column { display: grid; grid-template-columns: 1fr; }.case-title { align-items: flex-start; flex-direction: column; }.metrics-strip, .evidence-grid { grid-template-columns: repeat(2, 1fr); }.app-header { align-items: flex-start; flex-direction: column; }.replay-canvas { min-height: 230px; object-fit: contain; } }

@@ -1,1 +1,1 @@
-"""Outbound collaboration adapters for Slack and Ambiguous."""
+"""Outbound notification adapters."""

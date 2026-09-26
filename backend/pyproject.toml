@@ -14,11 +14,10 @@ dependencies = [
   "networkx>=3.3,<4",
   "httpx>=0.27,<1",
   "openai>=1.55,<2",
-  "metadrive-simulator @ git+https://github.com/metadriverse/metadrive.git",
   "langgraph>=1.0.2,<2",
+  "langchain-core>=1,<2",
   "langchain-openai>=1,<2",
-  "copilotkit>=0.1",
-  "ag-ui-langgraph>=0.0.31,<0.1",
+  "metadrive-simulator @ git+https://github.com/metadriverse/metadrive.git",
 ]
 
 [project.optional-dependencies]

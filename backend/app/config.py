@@ -25,10 +25,6 @@ class Settings(BaseSettings):
     llm_base_url: str | None = None
     llm_enabled: bool = True
     slack_webhook_url: str | None = None
-    ambiguous_api_base_url: str | None = None
-    ambiguous_api_token: str | None = None
-    ambiguous_workspace_id: str | None = None
-    ambiguous_webhook_secret: str | None = None
 
     @property
     def scenario_path(self) -> Path:

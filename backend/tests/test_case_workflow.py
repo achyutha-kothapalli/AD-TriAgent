@@ -17,6 +17,9 @@ def test_case_rule_workflow() -> None:
         assert response.status_code == 200
         case = response.json()
         assert case["triage"]["primary_family"] == "safety_conflict"
+        assert case["workflow"]["engine"] == "langgraph"
+        assert case["human_review"]["status"] == "pending"
+        assert "Safety reviewer" in case["human_review"]["reviewers"]
 
         comment = client.post(
             f"/api/cases/{case['id']}/comments",
