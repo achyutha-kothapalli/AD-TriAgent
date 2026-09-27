@@ -10,8 +10,10 @@ from app.graph.store import KnowledgeGraph
 from app.scenarios.repository import ScenarioRepository
 from app.services.cases import CaseStore, now
 from app.services.evidence import EvidenceExtractor
+from app.services.mlflow_tracing import MLflowTracer
 from app.services.narrator import TriageNarrator
 from app.services.observability import WorkflowObserver
+from app.services.retrieval import GuidanceRetriever
 
 REVIEW_ROUTES = {
     "safety_conflict": ["Safety reviewer", "System owner"],
@@ -43,7 +45,9 @@ class TriageWorkflow:
         knowledge_graph: KnowledgeGraph,
         extractor: EvidenceExtractor,
         narrator: TriageNarrator,
+        retriever: GuidanceRetriever,
         observer: WorkflowObserver,
+        mlflow_tracer: MLflowTracer,
         checkpointer: Any,
     ) -> None:
         self.scenarios = scenarios
@@ -51,7 +55,9 @@ class TriageWorkflow:
         self.knowledge_graph = knowledge_graph
         self.extractor = extractor
         self.narrator = narrator
+        self.retriever = retriever
         self.observer = observer
+        self.mlflow_tracer = mlflow_tracer
         self.checkpointer = checkpointer
         self.graph = self._build_graph()
 
@@ -59,6 +65,7 @@ class TriageWorkflow:
         workflow = StateGraph(TriageState)
         workflow.add_node("extract_evidence", self._extract_evidence)
         workflow.add_node("retrieve_active_rules", self._retrieve_active_rules)
+        workflow.add_node("retrieve_investigation_guidance", self._retrieve_investigation_guidance)
         workflow.add_node("assign_review_route", self._assign_review_route)
         workflow.add_node("draft_explanation", self._draft_explanation)
         workflow.add_node("await_human_review", self._await_human_review)
@@ -66,7 +73,8 @@ class TriageWorkflow:
         workflow.add_node("record_provenance", self._record_provenance)
         workflow.add_edge(START, "extract_evidence")
         workflow.add_edge("extract_evidence", "retrieve_active_rules")
-        workflow.add_edge("retrieve_active_rules", "assign_review_route")
+        workflow.add_edge("retrieve_active_rules", "retrieve_investigation_guidance")
+        workflow.add_edge("retrieve_investigation_guidance", "assign_review_route")
         workflow.add_edge("assign_review_route", "draft_explanation")
         workflow.add_edge("draft_explanation", "await_human_review")
         workflow.add_edge("await_human_review", "persist_case")
@@ -88,6 +96,15 @@ class TriageWorkflow:
         with self._measure("retrieve_active_rules", state):
             triage = dict(state["triage"])
             triage["active_rules"] = self.knowledge_graph.active_rules_for(triage["primary_family"])
+            return {"triage": triage}
+
+    def _retrieve_investigation_guidance(self, state: TriageState) -> TriageState:
+        with self._measure("retrieve_investigation_guidance", state) as details:
+            triage = dict(state["triage"])
+            guidance = self.retriever.retrieve(triage)
+            triage["investigation_guidance"] = guidance
+            details["guidance_status"] = guidance["status"]
+            details["retrieved_sources"] = len(guidance["sources"])
             return {"triage": triage}
 
     def _assign_review_route(self, state: TriageState) -> TriageState:
@@ -159,7 +176,8 @@ class TriageWorkflow:
         started = perf_counter()
         details: dict[str, Any] = {}
         try:
-            yield details
+            with self.mlflow_tracer.node_span(node, state, details):
+                yield details
         except Exception as error:
             self.observer.record(
                 scenario_id=state["scenario_id"],
@@ -179,8 +197,11 @@ class TriageWorkflow:
             )
 
     async def run(self, scenario_id: str) -> dict[str, Any]:
-        state = await self.graph.ainvoke(
-            {"scenario_id": scenario_id},
-            config={"configurable": {"thread_id": f"triage:{scenario_id}"}},
-        )
-        return state["case"]
+        with self.mlflow_tracer.workflow_span(scenario_id) as span:
+            state = await self.graph.ainvoke(
+                {"scenario_id": scenario_id},
+                config={"configurable": {"thread_id": f"triage:{scenario_id}"}},
+            )
+            case = state["case"]
+            self.mlflow_tracer.set_case_outcome(span, case)
+            return case

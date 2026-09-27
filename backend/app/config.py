@@ -24,6 +24,19 @@ class Settings(BaseSettings):
     llm_model: str = ""
     llm_base_url: str | None = None
     llm_enabled: bool = True
+    rag_enabled: bool = True
+    rag_top_k: int = 3
+    rag_corpus_path: str = "backend/app/knowledge/open_sources.json"
+    rag_backend: str = "tfidf"
+    rag_embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+    qdrant_url: str | None = None
+    qdrant_api_key: str | None = None
+    qdrant_collection: str = "triage_guidance"
+    qdrant_local_path: str = "data/runtime/qdrant"
+    mlflow_enabled: bool = False
+    mlflow_tracking_uri: str | None = None
+    mlflow_experiment: str = "AD-TriAgent"
+    mlflow_langchain_autolog: bool = False
     slack_webhook_url: str | None = None
 
     @property
@@ -33,6 +46,24 @@ class Settings(BaseSettings):
     @property
     def runtime_path(self) -> Path:
         return self._path_from_root(self.runtime_dir)
+
+    @property
+    def rag_corpus_file(self) -> Path:
+        return self._path_from_root(self.rag_corpus_path)
+
+    @property
+    def qdrant_local_directory(self) -> Path:
+        return self._path_from_root(self.qdrant_local_path)
+
+    @property
+    def mlflow_local_database(self) -> Path:
+        """SQLite database used by the supported local MLflow tracking store."""
+
+        return self.runtime_path / "mlflow.db"
+
+    @property
+    def mlflow_local_tracking_uri(self) -> str:
+        return f"sqlite:///{self.mlflow_local_database.as_posix()}"
 
     def _path_from_root(self, configured_path: str) -> Path:
         path = Path(configured_path)

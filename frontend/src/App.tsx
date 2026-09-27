@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
-import type { Case, Rule, Scenario, ScenarioSummary, Vehicle } from "./types";
+import type { Case, InvestigationGuidance, Rule, Scenario, ScenarioSummary, Vehicle } from "./types";
 
 // In development Vite proxies /api to FastAPI. In a deployed build, set
 // VITE_API_URL when the API is hosted on a different origin.
@@ -144,6 +144,25 @@ function RuleCard({ rule, onTest, onApprove }: { rule: Rule; onTest: (id: string
         {rule.status === "active" && <span className="approved">Approved by {rule.approved_by}</span>}
       </div>
     </article>
+  );
+}
+
+function InvestigationGuidanceCard({ guidance }: { guidance: InvestigationGuidance }) {
+  if (guidance.status === "disabled") return null;
+  if (guidance.status === "no_match") {
+    return <section className="investigation-guidance"><p className="eyebrow">Investigation guidance</p><p className="muted">No relevant approved source card was retrieved. Ask an expert to define the next evidence request.</p></section>;
+  }
+  const sources = new Map(guidance.sources.map((source) => [source.id, source]));
+  return (
+    <section className="investigation-guidance">
+      <div className="guidance-heading"><div><p className="eyebrow">Retrieved investigation guidance</p><h3>Where to look next</h3></div><span className="retrieval-badge">{guidance.retrieval_method.replaceAll("_", " ")}</span></div>
+      <p className="guidance-boundary">{guidance.decision_boundary}</p>
+      <ol className="guidance-directions">{guidance.directions.map((direction, index) => {
+        const source = sources.get(direction.source_id);
+        return <li key={`${direction.source_id}-${index}`}><span>{direction.text}</span>{source && <a href={source.url} target="_blank" rel="noreferrer">[{source.id}]</a>}</li>;
+      })}</ol>
+      <div className="guidance-sources">{guidance.sources.map((source) => <details key={source.id}><summary><a href={source.url} target="_blank" rel="noreferrer">{source.title}</a> · {source.publisher}</summary><p>{source.summary}</p><p>{source.reuse_basis}</p><p><strong>Limit:</strong> {source.limitations}</p></details>)}</div>
+    </section>
   );
 }
 
@@ -294,7 +313,7 @@ function App() {
             <section className="metrics-strip panel"><Metric label="TTC" value={`${(scenario.frames[frameIndex]?.metrics.ttc_s ?? 0).toFixed(1)}s`} /><Metric label="Perception" value={`${Math.round((scenario.frames[frameIndex]?.metrics.perception_confidence ?? 0) * 100)}%`} /><Metric label="Lane dev." value={`${(scenario.frames[frameIndex]?.metrics.lane_deviation_m ?? 0).toFixed(1)}m`} /><Metric label="System risk" value={`${Math.round((scenario.frames[frameIndex]?.metrics.system_health_risk ?? 0) * 100)}%`} /></section>
           </>}
 
-          {caseRecord && <section className="triage-result panel"><div className="panel-heading"><div><p className="eyebrow">AI recommendation — requires review</p><h2>{caseRecord.triage.primary_family_label}</h2></div><span className={`severity ${caseRecord.triage.severity.toLowerCase()}`}>{caseRecord.triage.severity}</span></div><div className="provenance-strip"><span>Route: deterministic telemetry</span><span>Explanation: {caseRecord.triage.narrative_provenance?.source === "llm" ? `LLM${caseRecord.triage.narrative_provenance.model ? ` · ${caseRecord.triage.narrative_provenance.model}` : ""}` : "deterministic fallback"}</span><span>Workflow: {caseRecord.workflow?.engine ?? "LangGraph"}</span></div><p className="narrative">{caseRecord.triage.narrative}</p><div className="evidence-grid">{caseRecord.triage.evidence.map((item) => <div className="evidence" key={item.metric}><span>{item.metric}</span><strong>{item.value}<small>{item.unit}</small></strong></div>)}</div>{caseRecord.triage.contributing_factors.length > 0 && <p className="contributing">Contributing: {caseRecord.triage.contributing_factors.join(" · ")}</p>}</section>}
+          {caseRecord && <section className="triage-result panel"><div className="panel-heading"><div><p className="eyebrow">AI recommendation — requires review</p><h2>{caseRecord.triage.primary_family_label}</h2></div><span className={`severity ${caseRecord.triage.severity.toLowerCase()}`}>{caseRecord.triage.severity}</span></div><div className="provenance-strip"><span>Route: deterministic telemetry</span><span>Explanation: {caseRecord.triage.narrative_provenance?.source.startsWith("llm") ? `LLM${caseRecord.triage.narrative_provenance.model ? ` · ${caseRecord.triage.narrative_provenance.model}` : ""}` : "deterministic fallback"}</span><span>Workflow: {caseRecord.workflow?.engine ?? "LangGraph"}</span></div><p className="narrative">{caseRecord.triage.narrative}</p><div className="evidence-grid">{caseRecord.triage.evidence.map((item) => <div className="evidence" key={item.metric}><span>{item.metric}</span><strong>{item.value}<small>{item.unit}</small></strong></div>)}</div>{caseRecord.triage.contributing_factors.length > 0 && <p className="contributing">Contributing: {caseRecord.triage.contributing_factors.join(" · ")}</p>}{caseRecord.triage.investigation_guidance && <InvestigationGuidanceCard guidance={caseRecord.triage.investigation_guidance} />}</section>}
         </section>
 
         <aside className="right-column">

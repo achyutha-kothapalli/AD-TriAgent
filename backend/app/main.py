@@ -14,8 +14,10 @@ from app.models import CaseReview, CommentCreate, RuleApproval
 from app.scenarios.repository import ScenarioRepository
 from app.services.cases import CaseStore, now
 from app.services.evidence import EvidenceExtractor
+from app.services.mlflow_tracing import MLflowTracer
 from app.services.narrator import TriageNarrator
 from app.services.observability import WorkflowObserver
+from app.services.retrieval import create_investigation_retriever
 from app.services.rules import RuleMiner
 from app.workflows.triage import TriageWorkflow
 
@@ -33,18 +35,25 @@ async def lifespan(app: FastAPI):
         app.state.extractor = EvidenceExtractor()
         app.state.rules = RuleMiner(app.state.extractor)
         app.state.narrator = TriageNarrator(settings)
+        app.state.retriever = create_investigation_retriever(settings)
         app.state.observer = WorkflowObserver(settings.runtime_path / "workflow_events.jsonl")
+        app.state.mlflow_tracer = MLflowTracer(settings)
         app.state.triage_workflow = TriageWorkflow(
             app.state.scenarios,
             app.state.cases,
             app.state.graph,
             app.state.extractor,
             app.state.narrator,
+            app.state.retriever,
             app.state.observer,
+            app.state.mlflow_tracer,
             checkpointer,
         )
         app.state.notifications = SlackNotifier(settings)
-        yield
+        try:
+            yield
+        finally:
+            app.state.retriever.close()
 
 
 settings = get_settings()
@@ -78,6 +87,7 @@ async def health(request: Request) -> dict:
         "status": "ok",
         "scenario_count": len(_service(request, "scenarios").all()),
         "knowledge_graph": "networkx-json",
+        "investigation_guidance": "local-rag-source-cards",
     }
 
 
@@ -213,6 +223,12 @@ async def list_rules(request: Request) -> list[dict]:
 @app.get("/api/knowledge-graph")
 async def knowledge_graph(request: Request) -> dict:
     return _service(request, "graph").snapshot()
+
+
+@app.get("/api/investigation-sources")
+async def investigation_sources(request: Request) -> dict:
+    """Expose source provenance without exposing credentials or hidden prompt context."""
+    return _service(request, "retriever").catalog()
 
 
 @app.get("/api/observability/summary")

@@ -11,6 +11,7 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 .pytest_cache/
+.pytest-run/
 .ruff_cache/
 node_modules/
 dist/

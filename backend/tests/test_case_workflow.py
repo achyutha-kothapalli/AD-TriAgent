@@ -20,6 +20,9 @@ def test_case_rule_workflow() -> None:
         assert case["workflow"]["engine"] == "langgraph"
         assert case["human_review"]["status"] == "pending"
         assert "Safety reviewer" in case["human_review"]["reviewers"]
+        guidance = case["triage"]["investigation_guidance"]
+        assert guidance["status"] == "available"
+        assert guidance["sources"]
 
         review = client.post(
             f"/api/cases/{case['id']}/review",

@@ -25,12 +25,20 @@ class TriageNarrator:
 
     async def draft(self, scenario_title: str, triage: dict) -> NarrativeDraft:
         """Use the configured LLM; deterministic evidence remains the source of truth."""
+        guidance = triage.get("investigation_guidance", {})
+        guidance_available = guidance.get("status") == "available"
         fallback = (
             f"{triage['primary_family_label']} is the primary route at {triage['severity']}. "
-            f"The decision is based on the extracted 15-second evidence window; human review is required."
+            "The decision is based on extracted telemetry; human review is required."
         )
+        if guidance_available:
+            fallback += " Retrieved sources provide investigation directions, not a root-cause conclusion."
         if not self.settings.llm_enabled or not self.settings.llm_api_key:
-            return NarrativeDraft(fallback, source="deterministic_fallback", fallback_reason="llm_disabled")
+            return NarrativeDraft(
+                fallback,
+                source="deterministic_retrieval_fallback" if guidance_available else "deterministic_fallback",
+                fallback_reason="llm_disabled",
+            )
         model = create_chat_model(self.settings)
         try:
             from openai import APIError
@@ -44,19 +52,27 @@ class TriageNarrator:
                     SystemMessage(
                         content=(
                             "You are an autonomous-driving triage assistant. Explain only supplied "
-                            "evidence, do not claim certainty, and request human review."
+                            "evidence and retrieved source cards. Do not claim certainty, a root cause, "
+                            "or compliance. When a source card is supplied, cite its exact ID in square "
+                            "brackets when using it. The deterministic route and human approval boundary "
+                            "cannot be changed. Request human review."
                         )
                     ),
                     HumanMessage(
                         content=(
                             f"Case: {scenario_title}\nTriage: {triage}\n"
-                            "Give a concise evidence-first explanation."
+                            "Give a concise evidence-first explanation and, if sources are supplied, "
+                            "two investigation directions grounded in those sources."
                         )
                     ),
                 ]
             )
             if response.content:
-                return NarrativeDraft(str(response.content), source="llm", model=self.settings.llm_model)
+                return NarrativeDraft(
+                    str(response.content),
+                    source="llm_with_retrieval" if guidance_available else "llm",
+                    model=self.settings.llm_model,
+                )
             return NarrativeDraft(
                 fallback, source="deterministic_fallback", fallback_reason="empty_model_response"
             )

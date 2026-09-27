@@ -10,7 +10,8 @@ disengagement, expert collaboration, and versioned rule mining in a knowledge gr
 
 - A generator that creates 30 synthetic scenario cases by driving procedural roads in MetaDrive.
 - Five decision families: safety conflict, perception/localization/map, prediction/interaction, planning/control/compliance, and ODD/platform/handover.
-- A LangGraph triage workflow: deterministic evidence, active-rule retrieval, expert routing, constrained LLM explanation, and a persisted human-review gate.
+- A LangGraph triage workflow: deterministic evidence, active-rule retrieval, retrieval-grounded investigation guidance, expert routing, constrained LLM explanation, and a persisted human-review gate.
+- Two retrieval backends: a transparent local TF-IDF baseline and optional Qdrant dense-vector retrieval with source-family metadata filters.
 - Reproducible corpus evaluation and per-node workflow telemetry, with no automatic rule activation.
 - FastAPI endpoints for triage cases, comments, rule candidates, testing, and owner approval.
 - A React case room with a browser-native top-down replay, evidence cards, collaboration timeline, and rule review panel.
@@ -74,8 +75,30 @@ The app runs in local-demo mode until credentials are provided.
 
 - `SLACK_WEBHOOK_URL` mirrors important case events to a configured triage channel.
 - `LLM_*` configures LangChain's server-side, OpenAI-compatible LLM provider. Leave `LLM_BASE_URL` blank for a direct OpenAI key.
+- `RAG_*` configures the local, licence-aware source-card retriever. It requires no
+  key; its citations suggest investigation directions but cannot change a decision.
 
 Secrets belong only in `.env`; do not commit them.
+
+See [RAG implementation and source policy](docs/rag.md) for the curated corpus,
+licence safeguards, and evaluation plan.
+
+### Optional Qdrant vector retrieval
+
+The default `RAG_BACKEND=tfidf` works with no model download or service. To use
+the vector backend locally, set `RAG_BACKEND=qdrant` and leave `QDRANT_URL` blank.
+The first startup downloads the configured FastEmbed model and stores the local
+Qdrant collection under `data/runtime/qdrant`.
+
+To use a Docker Qdrant service instead, set `RAG_BACKEND=qdrant` and start:
+
+```powershell
+docker compose --profile vector up --build
+```
+
+Inside Compose, the backend uses `http://qdrant:6333`. For a managed instance,
+set `QDRANT_URL` and `QDRANT_API_KEY` as deployment secrets. The active backend
+and collection are exposed through `/api/investigation-sources`.
 
 ### Human decision boundary
 
@@ -96,6 +119,15 @@ pnpm run build
 ```
 
 See [evaluation and observability](docs/evaluation.md) for the corpus-evaluation command and the metrics it reports.
+
+### Optional MLflow tracing
+
+Set `MLFLOW_ENABLED=true` to store local MLflow traces in the supported SQLite
+database `data/runtime/mlflow.db` by default, or point `MLFLOW_TRACKING_URI` at a
+managed MLflow server. Default traces record only case/node metadata, durations,
+outcomes, and retrieval status. `MLFLOW_LANGCHAIN_AUTOLOG=true` additionally enables MLflow
+LangChain/LangGraph auto-tracing and may capture prompts and responses, so use it
+only with approved synthetic or properly redacted data.
 
 ## Customer-pilot readiness
 

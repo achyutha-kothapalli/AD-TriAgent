@@ -40,6 +40,27 @@ export type Scenario = ScenarioSummary & {
 
 export type Evidence = { metric: string; value: number; unit: string };
 
+export type InvestigationSource = {
+  id: string;
+  title: string;
+  publisher: string;
+  url: string;
+  summary: string;
+  reuse_basis: string;
+  limitations: string;
+  relevance_score: number;
+};
+
+export type InvestigationGuidance = {
+  status: "available" | "disabled" | "no_match";
+  retrieval_method: string;
+  decision_boundary: string;
+  directions: Array<{ text: string; source_id: string }>;
+  sources: InvestigationSource[];
+  corpus_id?: string;
+  corpus_version?: string;
+};
+
 export type Triage = {
   primary_family: string;
   primary_family_label: string;
@@ -50,6 +71,7 @@ export type Triage = {
   narrative: string;
   narrative_provenance?: { source: string; model?: string | null; fallback_reason?: string | null };
   active_rules: Rule[];
+  investigation_guidance?: InvestigationGuidance;
 };
 
 export type Rule = {

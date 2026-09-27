@@ -18,6 +18,8 @@ dependencies = [
   "langgraph-checkpoint-sqlite>=3,<4",
   "langchain-core>=1,<2",
   "langchain-openai>=1,<2",
+  "mlflow>=3,<4",
+  "qdrant-client[fastembed]>=1.14,<2",
   "metadrive-simulator @ git+https://github.com/metadriverse/metadrive.git",
 ]
 
@@ -26,6 +28,9 @@ dev = ["pytest>=8,<9", "ruff>=0.8,<1"]
 
 [tool.setuptools.packages.find]
 include = ["app*"]
+
+[tool.setuptools.package-data]
+app = ["knowledge/*.json"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
