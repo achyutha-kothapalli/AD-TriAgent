@@ -8,8 +8,8 @@ FastAPI owns scenario data, numerical evidence extraction, case state, and optio
 
 1. `app.scenarios.generate` drives a procedural `MetaDriveEnv` for each deterministic seed.
 2. The generator writes a 150-frame, 10 Hz replay document with a disengagement anchor at frame 100.
-3. A LangGraph workflow invokes the evidence extractor, retrieves active rules and licence-aware investigation source cards, assigns the relevant expert route, then sets a case-level `awaiting_human_review` gate. Primary routing favours category-specific diagnostics over incidental simulation dynamics; TTC and jerk remain evidence and may be contributing safety signals.
-4. The default local TF-IDF retriever, or an optional Qdrant dense-vector retriever with approved-source and failure-family metadata filters, provides cited investigation directions from an allow-listed corpus of project-authored source cards. A LangChain OpenAI-compatible model may draft an explanation inside the workflow, but it may not overwrite numerical evidence, change the route, establish a root cause, or activate a rule.
+3. A LangGraph workflow invokes the evidence extractor, retrieves active rules and licence-aware investigation documents, assigns the relevant expert route, then sets a case-level `awaiting_human_review` gate. Primary routing favours category-specific diagnostics over incidental simulation dynamics; TTC and jerk remain evidence and may be contributing safety signals.
+4. The default local TF-IDF retriever, or an optional Qdrant dense-vector retriever with approved-document, corpus-version, and failure-family metadata filters, provides cited document passages from an allow-listed corpus of project-authored review guides. A LangChain OpenAI-compatible model may draft an explanation inside the workflow, but it may not overwrite numerical evidence, change the route, establish a root cause, or activate a rule.
 5. Comments create provenance-linked candidate rules in the NetworkX graph.
 6. A candidate is tested on the corpus, then only a system owner may activate a passing rule.
 

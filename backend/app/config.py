@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     llm_enabled: bool = True
     rag_enabled: bool = True
     rag_top_k: int = 3
-    rag_corpus_path: str = "backend/app/knowledge/open_sources.json"
+    rag_corpus_path: str = "backend/app/knowledge/documents/manifest.json"
     rag_backend: str = "tfidf"
     rag_embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     qdrant_url: str | None = None

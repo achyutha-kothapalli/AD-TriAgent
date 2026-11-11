@@ -1,0 +1,59 @@
+{
+  "corpus_id": "ad-triage-approved-review-guides",
+  "version": "2026-11-10",
+  "content_policy": "The corpus contains original AD-TriAgent operational review guides. Each guide preserves source links, reuse notes, and limitations. It does not store copied third-party passages, ISO standards, OEM material, or incident telemetry.",
+  "documents": [
+    {
+      "id": "safety-trajectory-review-guide",
+      "title": "Safety and trajectory conflict review guide",
+      "publisher": "AD-TriAgent (project-authored guide)",
+      "url": "https://www.fhwa.dot.gov/publications/research/operations/17027/index.cfm",
+      "reuse_basis": "Original project-authored operational guide informed by public U.S. Government safety and surrogate-measure references. No source text is reproduced.",
+      "families": ["safety_conflict", "prediction_interaction", "planning_control"],
+      "keywords": ["time to collision", "ttc", "trajectory", "relative speed", "conflict", "evasive action", "post encroachment time"],
+      "summary": "A structured guide for interpreting trajectory conflict evidence as an investigation signal rather than a root-cause verdict.",
+      "investigation_prompts": ["Reconstruct the interaction around minimum TTC: relative speed, trajectory overlap, braking or steering response, and the evidence available to each subsystem."],
+      "limitations": "Surrogate safety measures show interaction criticality; they do not identify a software subsystem, prove fault, or set a universal threshold.",
+      "path": "safety-trajectory-review.md"
+    },
+    {
+      "id": "perception-occlusion-review-guide",
+      "title": "Perception, localisation, and occlusion review guide",
+      "publisher": "AD-TriAgent (project-authored guide)",
+      "url": "https://www.mdpi.com/2674-113X/1/3/11",
+      "reuse_basis": "Original project-authored operational guide with an attributed link to an open-access CC BY scenario-study reference. No article text is reproduced.",
+      "families": ["perception_localization", "prediction_interaction", "safety_conflict"],
+      "keywords": ["occlusion", "visibility", "perception confidence", "localization", "object track", "sensor coverage", "non line of sight"],
+      "summary": "A guide for separating observability, state-estimation, tracking, and downstream interaction questions in a review.",
+      "investigation_prompts": ["Identify whether the evidence indicates an observability gap, a localisation/state-estimation issue, a track-quality issue, or an unresolved downstream response question."],
+      "limitations": "A low confidence score or occlusion hypothesis is not evidence of a sensor-stack root cause without logs, calibration context, and reviewer analysis.",
+      "path": "perception-occlusion-review.md"
+    },
+    {
+      "id": "scenario-odd-review-guide",
+      "title": "Scenario, ODD, fallback, and handover review guide",
+      "publisher": "AD-TriAgent (project-authored guide)",
+      "url": "https://www.nhtsa.gov/vehicle-manufacturers/automated-driving-systems",
+      "reuse_basis": "Original project-authored operational guide informed by public U.S. Government ADS safety guidance and reference-only scenario-method material. No publication text is reproduced.",
+      "families": ["odd_handover", "safety_conflict", "perception_localization", "prediction_interaction", "planning_control"],
+      "keywords": ["operational design domain", "odd", "fallback", "handover", "takeover", "logical scenario", "concrete scenario", "capability boundary"],
+      "summary": "A guide for describing a repeatable scenario and distinguishing a planned capability boundary from an unexplained failure.",
+      "investigation_prompts": ["Describe the replay as a logical scenario, then identify whether ODD, fallback, handover timing, system health, or missing context requires human investigation."],
+      "limitations": "The guide is not compliance advice and cannot determine whether a fallback or handover was appropriate without the operating policy and authoritative logs.",
+      "path": "scenario-odd-review.md"
+    },
+    {
+      "id": "planning-control-review-guide",
+      "title": "Planning and control evidence review guide",
+      "publisher": "AD-TriAgent (project-authored guide)",
+      "url": "https://www.mdpi.com/1424-8220/22/16/6031",
+      "reuse_basis": "Original project-authored operational guide with an attributed link to an open-access CC BY scenario-framework reference. No article text is reproduced.",
+      "families": ["planning_control", "safety_conflict", "prediction_interaction"],
+      "keywords": ["lane deviation", "jerk", "control", "planning", "maneuver", "compliance", "trajectory", "scenario parameters"],
+      "summary": "A guide for reviewing planning and control evidence while preserving the distinction between observed motion and a diagnosed stack defect.",
+      "investigation_prompts": ["Compare desired maneuver, feasible trajectory, vehicle response, lane relationship, and interaction context before assigning a planning or control hypothesis."],
+      "limitations": "Motion metrics alone cannot distinguish a planner defect, controller issue, environmental constraint, sensor error, or intentionally constrained fallback.",
+      "path": "planning-control-review.md"
+    }
+  ]
+}

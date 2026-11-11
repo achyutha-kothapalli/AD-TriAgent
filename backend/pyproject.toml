@@ -30,7 +30,7 @@ dev = ["pytest>=8,<9", "ruff>=0.8,<1"]
 include = ["app*"]
 
 [tool.setuptools.package-data]
-app = ["knowledge/*.json"]
+app = ["knowledge/*.json", "knowledge/documents/*.json", "knowledge/documents/*.md"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

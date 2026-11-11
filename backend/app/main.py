@@ -87,7 +87,7 @@ async def health(request: Request) -> dict:
         "status": "ok",
         "scenario_count": len(_service(request, "scenarios").all()),
         "knowledge_graph": "networkx-json",
-        "investigation_guidance": "local-rag-source-cards",
+        "investigation_guidance": "approved-chunked-rag-documents",
     }
 
 
