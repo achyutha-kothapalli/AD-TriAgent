@@ -58,7 +58,7 @@ class KnowledgeDocument:
     path: Path
 
     @classmethod
-    def from_dict(cls, raw: dict[str, Any], corpus_directory: Path) -> "KnowledgeDocument":
+    def from_dict(cls, raw: dict[str, Any], corpus_directory: Path) -> KnowledgeDocument:
         return cls(
             id=str(raw["id"]),
             title=str(raw["title"]),
