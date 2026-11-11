@@ -1,11 +1,13 @@
-"""Retrieval-grounded investigation guidance for a triage case.
+"""Licence-aware document retrieval for evidence-first triage.
 
-The corpus contains project-authored source cards rather than copied standards or PDFs.
-That makes source provenance and reuse review explicit while keeping the POC portable.
+The RAG corpus is deliberately small and versioned. It contains project-authored
+review guides with explicit source links and reuse notes, rather than copied
+standards, OEM material, or ungoverned web pages.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import re
@@ -19,6 +21,8 @@ if TYPE_CHECKING:
 
 TOKEN_PATTERN = re.compile(r"[a-z0-9]+")
 STOP_WORDS = {"and", "for", "from", "into", "the", "this", "with"}
+CHUNK_WORDS = 110
+CHUNK_OVERLAP_WORDS = 24
 
 FAMILY_QUERY_TERMS = {
     "safety_conflict": "time to collision trajectory interaction conflict evasive action",
@@ -38,7 +42,9 @@ def _tokens(value: str) -> set[str]:
 
 
 @dataclass(frozen=True)
-class KnowledgeSource:
+class KnowledgeDocument:
+    """An approved, project-authored guide with traceable original references."""
+
     id: str
     title: str
     publisher: str
@@ -49,9 +55,10 @@ class KnowledgeSource:
     summary: str
     investigation_prompts: list[str]
     limitations: str
+    path: Path
 
     @classmethod
-    def from_dict(cls, raw: dict[str, Any]) -> KnowledgeSource:
+    def from_dict(cls, raw: dict[str, Any], corpus_directory: Path) -> KnowledgeDocument:
         return cls(
             id=str(raw["id"]),
             title=str(raw["title"]),
@@ -63,19 +70,7 @@ class KnowledgeSource:
             summary=str(raw["summary"]),
             investigation_prompts=[str(value) for value in raw["investigation_prompts"]],
             limitations=str(raw["limitations"]),
-        )
-
-    def searchable_text(self) -> str:
-        return " ".join(
-            [
-                self.title,
-                self.publisher,
-                *self.families,
-                *self.keywords,
-                self.summary,
-                *self.investigation_prompts,
-                self.limitations,
-            ]
+            path=corpus_directory / str(raw["path"]),
         )
 
     def citation(self, score: float) -> dict[str, Any]:
@@ -87,6 +82,41 @@ class KnowledgeSource:
             "summary": self.summary,
             "reuse_basis": self.reuse_basis,
             "limitations": self.limitations,
+            "relevance_score": round(score, 3),
+        }
+
+
+@dataclass(frozen=True)
+class KnowledgeChunk:
+    """A citable, stable segment of one approved corpus document."""
+
+    id: str
+    document: KnowledgeDocument
+    heading: str
+    text: str
+    ordinal: int
+    checksum: str
+
+    def searchable_text(self) -> str:
+        return " ".join(
+            [
+                self.document.title,
+                self.document.publisher,
+                *self.document.families,
+                *self.document.keywords,
+                self.document.summary,
+                self.heading,
+                self.text,
+            ]
+        )
+
+    def passage(self, score: float) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "document_id": self.document.id,
+            "heading": self.heading,
+            "text": self.text,
+            "checksum": self.checksum,
             "relevance_score": round(score, 3),
         }
 
@@ -103,12 +133,65 @@ class Embedder(Protocol):
     def embed(self, texts: list[str]) -> list[list[float]]: ...
 
 
-class InvestigationRetriever:
-    """A dependency-free TF-IDF retrieval baseline with explicit family metadata.
+def _markdown_sections(markdown: str) -> list[tuple[str, str]]:
+    """Extract prose sections without adding a Markdown parser dependency."""
 
-    It is intentionally deterministic: the evidence extractor supplies the query, source
-    cards are allow-listed, and all result cards are visible to the reviewer.
-    """
+    heading = "Overview"
+    sections: list[tuple[str, str]] = []
+    paragraph: list[str] = []
+
+    def flush() -> None:
+        if paragraph:
+            text = " ".join(paragraph).strip()
+            if text:
+                sections.append((heading, text))
+            paragraph.clear()
+
+    for raw_line in markdown.splitlines():
+        line = raw_line.strip()
+        if line.startswith("#"):
+            flush()
+            heading = line.lstrip("#").strip() or "Overview"
+        elif not line:
+            flush()
+        elif not line.startswith("<!--"):
+            paragraph.append(line)
+    flush()
+    return sections
+
+
+def _chunk_document(document: KnowledgeDocument) -> list[KnowledgeChunk]:
+    if not document.path.is_file():
+        raise ValueError(f"Approved RAG document is missing: {document.path}")
+    chunks: list[KnowledgeChunk] = []
+    ordinal = 1
+    for heading, section in _markdown_sections(document.path.read_text(encoding="utf-8")):
+        words = section.split()
+        for start in range(0, len(words), CHUNK_WORDS - CHUNK_OVERLAP_WORDS):
+            text = " ".join(words[start : start + CHUNK_WORDS]).strip()
+            if not text:
+                continue
+            checksum = hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+            chunks.append(
+                KnowledgeChunk(
+                    id=f"{document.id}:chunk-{ordinal:03d}",
+                    document=document,
+                    heading=heading,
+                    text=text,
+                    ordinal=ordinal,
+                    checksum=checksum,
+                )
+            )
+            ordinal += 1
+            if start + CHUNK_WORDS >= len(words):
+                break
+    if not chunks:
+        raise ValueError(f"Approved RAG document has no indexable prose: {document.path}")
+    return chunks
+
+
+class InvestigationRetriever:
+    """Deterministic TF-IDF retrieval over approved, chunked Markdown documents."""
 
     def __init__(self, corpus_path: Path, enabled: bool = True, top_k: int = 3) -> None:
         self.enabled = enabled
@@ -117,10 +200,12 @@ class InvestigationRetriever:
         self.corpus_id = str(raw["corpus_id"])
         self.version = str(raw["version"])
         self.content_policy = str(raw["content_policy"])
-        self.sources = [KnowledgeSource.from_dict(item) for item in raw["sources"]]
-        if not self.sources:
+        self.documents = [KnowledgeDocument.from_dict(item, corpus_path.parent) for item in raw["documents"]]
+        if not self.documents:
             raise ValueError("The investigation guidance corpus is empty")
-        self._document_tokens = {source.id: _tokens(source.searchable_text()) for source in self.sources}
+        self.sources = self.documents
+        self.chunks = [chunk for document in self.documents for chunk in _chunk_document(document)]
+        self._chunk_tokens = {chunk.id: _tokens(chunk.searchable_text()) for chunk in self.chunks}
         self._document_frequency = self._document_frequencies()
 
     def catalog(self) -> dict[str, Any]:
@@ -129,35 +214,70 @@ class InvestigationRetriever:
             "corpus_id": self.corpus_id,
             "version": self.version,
             "content_policy": self.content_policy,
-            "sources": [source.citation(score=0.0) for source in self.sources],
+            "document_count": len(self.documents),
+            "chunk_count": len(self.chunks),
+            "sources": [document.citation(score=0.0) for document in self.documents],
         }
 
     def retrieve(self, triage: dict[str, Any]) -> dict[str, Any]:
         if not self.enabled:
-            return {
-                "status": "disabled",
-                "retrieval_method": "local_tfidf_with_family_metadata",
-                "decision_boundary": "No retrieved guidance is used for routing or approval.",
-                "directions": [],
-                "sources": [],
-            }
+            return self._empty_result("disabled", "local_tfidf_chunked_documents_with_family_metadata")
 
         family = str(triage["primary_family"])
         query = self._query_for(triage)
+        eligible = [chunk for chunk in self.chunks if family in chunk.document.families] or self.chunks
         ranked = sorted(
-            ((self._score(query, source, family), source) for source in self.sources),
+            ((self._score(query, chunk, family), chunk) for chunk in eligible),
             key=lambda item: item[0],
             reverse=True,
         )[: self.top_k]
-        results = [(score, source) for score, source in ranked if score > 0]
-        directions = [
-            {"text": prompt, "source_id": source.id}
-            for _, source in results
-            for prompt in source.investigation_prompts[:1]
-        ]
+        return self._guidance_from_ranked(
+            ranked,
+            query=query,
+            retrieval_method="local_tfidf_chunked_documents_with_family_metadata",
+        )
+
+    def close(self) -> None:
+        """Keep a common lifecycle interface with networked retrieval backends."""
+
+    def _empty_result(self, status: str, retrieval_method: str) -> dict[str, Any]:
+        return {
+            "status": status,
+            "retrieval_method": retrieval_method,
+            "decision_boundary": "No retrieved guidance is used for routing or approval.",
+            "directions": [],
+            "sources": [],
+            "retrieved_passages": [],
+        }
+
+    def _guidance_from_ranked(
+        self,
+        ranked: list[tuple[float, KnowledgeChunk]],
+        *,
+        query: set[str],
+        retrieval_method: str,
+    ) -> dict[str, Any]:
+        results = [(score, chunk) for score, chunk in ranked if score > 0]
+        source_scores: dict[str, float] = {}
+        source_by_id: dict[str, KnowledgeDocument] = {}
+        directions: list[dict[str, str]] = []
+        directed_sources: set[str] = set()
+        for score, chunk in results:
+            document = chunk.document
+            source_scores[document.id] = max(score, source_scores.get(document.id, 0.0))
+            source_by_id[document.id] = document
+            if document.id not in directed_sources and document.investigation_prompts:
+                directions.append(
+                    {
+                        "text": document.investigation_prompts[0],
+                        "source_id": document.id,
+                        "passage_id": chunk.id,
+                    }
+                )
+                directed_sources.add(document.id)
         return {
             "status": "available" if results else "no_match",
-            "retrieval_method": "local_tfidf_with_family_metadata",
+            "retrieval_method": retrieval_method,
             "corpus_id": self.corpus_id,
             "corpus_version": self.version,
             "query_terms": sorted(query),
@@ -166,15 +286,16 @@ class InvestigationRetriever:
                 "root cause, compliance status, routing decision, or rule approval."
             ),
             "directions": directions,
-            "sources": [source.citation(score) for score, source in results],
+            "sources": [
+                source_by_id[document_id].citation(source_scores[document_id])
+                for document_id in source_scores
+            ],
+            "retrieved_passages": [chunk.passage(score) for score, chunk in results],
         }
-
-    def close(self) -> None:
-        """Keep a common lifecycle interface with networked retrieval backends."""
 
     def _document_frequencies(self) -> dict[str, int]:
         frequencies: dict[str, int] = {}
-        for tokens in self._document_tokens.values():
+        for tokens in self._chunk_tokens.values():
             for token in tokens:
                 frequencies[token] = frequencies.get(token, 0) + 1
         return frequencies
@@ -190,12 +311,12 @@ class InvestigationRetriever:
         ]
         return _tokens(" ".join(terms))
 
-    def _score(self, query: set[str], source: KnowledgeSource, family: str) -> float:
-        document = self._document_tokens[source.id]
+    def _score(self, query: set[str], chunk: KnowledgeChunk, family: str) -> float:
+        document = self._chunk_tokens[chunk.id]
         shared = query & document
         if not shared:
-            return 0.15 if family in source.families else 0.0
-        document_count = len(self.sources)
+            return 0.05 if family in chunk.document.families else 0.0
+        document_count = len(self.chunks)
 
         def weight(token: str) -> float:
             return math.log((document_count + 1) / (self._document_frequency.get(token, 0) + 1)) + 1
@@ -204,7 +325,7 @@ class InvestigationRetriever:
         query_norm = math.sqrt(sum(weight(token) ** 2 for token in query))
         document_norm = math.sqrt(sum(weight(token) ** 2 for token in document))
         cosine = numerator / (query_norm * document_norm) if query_norm and document_norm else 0.0
-        return cosine + (0.18 if family in source.families else 0.0)
+        return cosine + (0.18 if family in chunk.document.families else 0.0)
 
 
 class FastEmbedEmbedder:
@@ -220,7 +341,7 @@ class FastEmbedEmbedder:
 
 
 class QdrantInvestigationRetriever:
-    """Dense-vector retrieval over the approved, project-authored source-card corpus."""
+    """Dense-vector retrieval over approved, chunked corpus documents."""
 
     def __init__(
         self,
@@ -238,15 +359,16 @@ class QdrantInvestigationRetriever:
         self.lexical = InvestigationRetriever(corpus_path, enabled=True, top_k=top_k)
         self.top_k = top_k
         self.collection_name = collection_name
+        self.embedding_model = embedding_model
         self.embedder = embedder or FastEmbedEmbedder(embedding_model)
         self.client = client or self._create_client(url, api_key, local_path)
-        self._sync_source_cards()
+        self._sync_chunks()
 
     def catalog(self) -> dict[str, Any]:
         catalog = self.lexical.catalog()
         catalog["backend"] = "qdrant"
         catalog["collection"] = self.collection_name
-        catalog["embedding_model"] = type(self.embedder).__name__
+        catalog["embedding_model"] = self.embedding_model
         return catalog
 
     def retrieve(self, triage: dict[str, Any]) -> dict[str, Any]:
@@ -271,32 +393,18 @@ class QdrantInvestigationRetriever:
             limit=self.top_k,
             with_payload=True,
         )
-        source_by_id = {source.id: source for source in self.lexical.sources}
-        results = []
+        chunk_by_id = {chunk.id: chunk for chunk in self.lexical.chunks}
+        results: list[tuple[float, KnowledgeChunk]] = []
         for point in response.points:
-            source_id = str((point.payload or {}).get("source_id", ""))
-            source = source_by_id.get(source_id)
-            if source is not None:
-                results.append((float(point.score), source))
-
-        directions = [
-            {"text": prompt, "source_id": source.id}
-            for _, source in results
-            for prompt in source.investigation_prompts[:1]
-        ]
-        return {
-            "status": "available" if results else "no_match",
-            "retrieval_method": "qdrant_dense_cosine_with_metadata_filter",
-            "corpus_id": self.lexical.corpus_id,
-            "corpus_version": self.lexical.version,
-            "query_terms": sorted(query_terms),
-            "decision_boundary": (
-                "Retrieved material suggests investigation directions only; it cannot establish a "
-                "root cause, compliance status, routing decision, or rule approval."
-            ),
-            "directions": directions,
-            "sources": [source.citation(score) for score, source in results],
-        }
+            chunk_id = str((point.payload or {}).get("chunk_id", ""))
+            chunk = chunk_by_id.get(chunk_id)
+            if chunk is not None:
+                results.append((float(point.score), chunk))
+        return self.lexical._guidance_from_ranked(
+            results,
+            query=query_terms,
+            retrieval_method="qdrant_dense_chunked_documents_with_metadata_filter",
+        )
 
     def close(self) -> None:
         self.client.close()
@@ -309,13 +417,13 @@ class QdrantInvestigationRetriever:
         local_path.mkdir(parents=True, exist_ok=True)
         return QdrantClient(path=str(local_path))
 
-    def _sync_source_cards(self) -> None:
+    def _sync_chunks(self) -> None:
         from qdrant_client import models
 
-        texts = [source.searchable_text() for source in self.lexical.sources]
+        texts = [chunk.searchable_text() for chunk in self.lexical.chunks]
         vectors = self.embedder.embed(texts)
         if not vectors:
-            raise ValueError("The embedding provider returned no vectors for the source-card corpus")
+            raise ValueError("The embedding provider returned no vectors for the approved document corpus")
         vector_size = len(vectors[0])
         if not self.client.collection_exists(self.collection_name):
             self.client.create_collection(
@@ -333,17 +441,18 @@ class QdrantInvestigationRetriever:
                 )
         points = [
             models.PointStruct(
-                id=str(uuid.uuid5(uuid.NAMESPACE_URL, f"{self.lexical.corpus_id}:{source.id}")),
+                id=str(uuid.uuid5(uuid.NAMESPACE_URL, f"{self.lexical.corpus_id}:{chunk.id}")),
                 vector=vector,
                 payload={
-                    "source_id": source.id,
+                    "chunk_id": chunk.id,
+                    "document_id": chunk.document.id,
                     "approved": True,
-                    "families": source.families,
-                    "keywords": source.keywords,
+                    "families": chunk.document.families,
                     "corpus_version": self.lexical.version,
+                    "checksum": chunk.checksum,
                 },
             )
-            for source, vector in zip(self.lexical.sources, vectors, strict=True)
+            for chunk, vector in zip(self.lexical.chunks, vectors, strict=True)
         ]
         self.client.upsert(collection_name=self.collection_name, points=points, wait=True)
 

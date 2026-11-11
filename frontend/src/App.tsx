@@ -150,9 +150,10 @@ function RuleCard({ rule, onTest, onApprove }: { rule: Rule; onTest: (id: string
 function InvestigationGuidanceCard({ guidance }: { guidance: InvestigationGuidance }) {
   if (guidance.status === "disabled") return null;
   if (guidance.status === "no_match") {
-    return <section className="investigation-guidance"><p className="eyebrow">Investigation guidance</p><p className="muted">No relevant approved source card was retrieved. Ask an expert to define the next evidence request.</p></section>;
+    return <section className="investigation-guidance"><p className="eyebrow">Investigation guidance</p><p className="muted">No relevant approved document passage was retrieved. Ask an expert to define the next evidence request.</p></section>;
   }
   const sources = new Map(guidance.sources.map((source) => [source.id, source]));
+  const passages = guidance.retrieved_passages ?? [];
   return (
     <section className="investigation-guidance">
       <div className="guidance-heading"><div><p className="eyebrow">Retrieved investigation guidance</p><h3>Where to look next</h3></div><span className="retrieval-badge">{guidance.retrieval_method.replaceAll("_", " ")}</span></div>
@@ -161,6 +162,10 @@ function InvestigationGuidanceCard({ guidance }: { guidance: InvestigationGuidan
         const source = sources.get(direction.source_id);
         return <li key={`${direction.source_id}-${index}`}><span>{direction.text}</span>{source && <a href={source.url} target="_blank" rel="noreferrer">[{source.id}]</a>}</li>;
       })}</ol>
+      {passages.length > 0 && <details className="guidance-passages"><summary>Retrieved document passages ({passages.length})</summary>{passages.map((passage) => {
+        const source = sources.get(passage.document_id);
+        return <article key={passage.id}><p className="passage-heading">{source?.title ?? passage.document_id} · {passage.heading}</p><p>{passage.text}</p><small>Chunk {passage.id} · relevance {passage.relevance_score.toFixed(3)}</small></article>;
+      })}</details>}
       <div className="guidance-sources">{guidance.sources.map((source) => <details key={source.id}><summary><a href={source.url} target="_blank" rel="noreferrer">{source.title}</a> · {source.publisher}</summary><p>{source.summary}</p><p>{source.reuse_basis}</p><p><strong>Limit:</strong> {source.limitations}</p></details>)}</div>
     </section>
   );

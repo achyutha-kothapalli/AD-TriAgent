@@ -55,8 +55,16 @@ export type InvestigationGuidance = {
   status: "available" | "disabled" | "no_match";
   retrieval_method: string;
   decision_boundary: string;
-  directions: Array<{ text: string; source_id: string }>;
+  directions: Array<{ text: string; source_id: string; passage_id?: string }>;
   sources: InvestigationSource[];
+  retrieved_passages?: Array<{
+    id: string;
+    document_id: string;
+    heading: string;
+    text: string;
+    checksum: string;
+    relevance_score: number;
+  }>;
   corpus_id?: string;
   corpus_version?: string;
 };

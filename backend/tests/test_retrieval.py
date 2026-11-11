@@ -32,10 +32,16 @@ def test_retriever_returns_cited_safety_guidance() -> None:
     )
 
     assert guidance["status"] == "available"
-    assert guidance["retrieval_method"] == "local_tfidf_with_family_metadata"
+    assert guidance["retrieval_method"] == "local_tfidf_chunked_documents_with_family_metadata"
     assert guidance["sources"]
     assert guidance["directions"]
+    assert guidance["retrieved_passages"]
+    assert all(":chunk-" in passage["id"] for passage in guidance["retrieved_passages"])
     assert all(source["url"].startswith("https://") for source in guidance["sources"])
+
+    catalog = retriever.catalog()
+    assert catalog["document_count"] >= 4
+    assert catalog["chunk_count"] > catalog["document_count"]
 
 
 def test_retriever_can_be_disabled_without_affecting_triage_routing() -> None:
@@ -46,6 +52,7 @@ def test_retriever_can_be_disabled_without_affecting_triage_routing() -> None:
 
     assert guidance["status"] == "disabled"
     assert guidance["sources"] == []
+    assert guidance["retrieved_passages"] == []
 
 
 def test_qdrant_retriever_returns_filtered_cited_guidance() -> None:
@@ -75,7 +82,9 @@ def test_qdrant_retriever_returns_filtered_cited_guidance() -> None:
         retriever.close()
 
     assert guidance["status"] == "available"
-    assert guidance["retrieval_method"] == "qdrant_dense_cosine_with_metadata_filter"
+    assert guidance["retrieval_method"] == "qdrant_dense_chunked_documents_with_metadata_filter"
     assert guidance["sources"]
-    source_by_id = {source.id: source for source in retriever.lexical.sources}
+    assert guidance["retrieved_passages"]
+    source_by_id = {source.id: source for source in retriever.lexical.documents}
     assert all("safety_conflict" in source_by_id[item["id"]].families for item in guidance["sources"])
+    assert all("safety_conflict" in source_by_id[item["document_id"]].families for item in guidance["retrieved_passages"])

@@ -52,8 +52,8 @@ class TriageNarrator:
                     SystemMessage(
                         content=(
                             "You are an autonomous-driving triage assistant. Explain only supplied "
-                            "evidence and retrieved source cards. Do not claim certainty, a root cause, "
-                            "or compliance. When a source card is supplied, cite its exact ID in square "
+                            "evidence and retrieved approved document passages. Do not claim certainty, a root cause, "
+                            "or compliance. When a document passage is supplied, cite its exact source ID in square "
                             "brackets when using it. The deterministic route and human approval boundary "
                             "cannot be changed. Request human review."
                         )

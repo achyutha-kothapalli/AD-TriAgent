@@ -23,8 +23,8 @@ disengagement, expert collaboration, and versioned rule mining in a knowledge gr
 ```text
 MetaDrive generator -> scenario JSON -> LangGraph triage workflow -> human-review gate
                                           |         |                    |
-React case room <----- FastAPI <----- expert comments     |                    v
-Slack <-------------------- notification outbox ----------+              NetworkX rule graph
+React case room <----- FastAPI <----- expert comments     |              v
+Slack <-------------------- notification outbox ----------+       NetworkX rule graph
 ```
 
 The browser uses its own Canvas replay of the MetaDrive-generated tracks, avoiding a graphical simulator dependency during a live demo. The source trajectories and scene metadata still originate from MetaDrive. An optional renderer script can be added later for recorded simulator video.
@@ -75,8 +75,9 @@ The app runs in local-demo mode until credentials are provided.
 
 - `SLACK_WEBHOOK_URL` mirrors important case events to a configured triage channel.
 - `LLM_*` configures LangChain's server-side, OpenAI-compatible LLM provider. Leave `LLM_BASE_URL` blank for a direct OpenAI key.
-- `RAG_*` configures the local, licence-aware source-card retriever. It requires no
-  key; its citations suggest investigation directions but cannot change a decision.
+- `RAG_*` configures the local, licence-aware chunked-document retriever. It requires
+  no key; its cited passages suggest investigation directions but cannot change a
+  decision.
 
 Secrets belong only in `.env`; do not commit them.
 
@@ -143,10 +144,3 @@ Copyright © 2026 Achyutha Kothapalli. This project is licensed under the
 [Creative Commons Attribution-NonCommercial 4.0 International License](LICENSE)
 (CC BY-NC 4.0). Commercial use is not permitted.
 
-## Demo script
-
-1. Open a queued disengagement and replay the 15-second window.
-2. Inspect the evidence and explain why the case was routed to its preliminary review path.
-3. Add an expert comment that changes the interpretation.
-4. Watch a rule candidate appear, run its regression test, then approve it as the system owner.
-5. Open a related later scenario and show the now-active rule cited in the triage result.
